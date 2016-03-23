@@ -43,6 +43,65 @@ class BraveBrowserViewController : BrowserViewController {
         // With this color, it matches to default semi-transparent state of the toolbar
         // The value is hand-picked to match the effect on the url bar, we don't have a color constant for this elsewhere
         statusBarOverlay.backgroundColor = DeviceInfo.isBlurSupported() ? UIColor(white: 0.255, alpha: 1.0) : UIColor.blackColor()
+
+        goBackSwipe.edges = .Left
+        goForwardSwipe.edges = .Right
+    }
+
+    lazy var goBackSwipe: UIScreenEdgePanGestureRecognizer = {
+        let pan = UIScreenEdgePanGestureRecognizer(target: self, action: "screenLeftEdgeSwiped:")
+        self.view.addGestureRecognizer(pan)
+        return pan
+    }()
+
+    lazy var goForwardSwipe: UIScreenEdgePanGestureRecognizer = {
+        let pan = UIScreenEdgePanGestureRecognizer(target: self, action: "screenRightEdgeSwiped:")
+        self.view.addGestureRecognizer(pan)
+        return pan
+    }()
+
+    private func handleSwipe(recognizer: UIScreenEdgePanGestureRecognizer) {
+        let p = recognizer.locationInView(recognizer.view)
+
+        let shouldReturnToZero = (recognizer.edges == .Left) ? p.x < self.view.frame.width / 2.0 : p.x > self.view.frame.width / 2.0
+
+        if recognizer.state == .Ended || recognizer.state == .Cancelled || recognizer.state == .Failed {
+            UIView.animateWithDuration(0.25, animations: {
+                if shouldReturnToZero {
+                    self.webViewContainer.transform = CGAffineTransformMakeTranslation(0, self.webViewContainer.transform.ty)
+                } else {
+                    let x = (recognizer.edges == .Left) ? self.view.frame.width : -self.view.frame.width
+                    self.webViewContainer.transform = CGAffineTransformMakeTranslation(x, self.webViewContainer.transform.ty)
+                    self.webViewContainer.alpha = 0
+                }
+            }, completion: { (Bool) -> Void in
+                if !shouldReturnToZero {
+                    if recognizer.edges == .Left {
+                        self.tabManager.selectedTab?.webView?.goBack()
+                    } else {
+                        self.tabManager.selectedTab?.webView?.goForward()
+                    }
+                }
+
+                self.webViewContainer.transform = CGAffineTransformMakeTranslation(0, self.webViewContainer.transform.ty)
+                UIView.animateWithDuration(0.1) {
+                    self.webViewContainer.alpha = 1.0
+                    self.scrollController.edgeSwipingActive = false
+                }
+            })
+        } else {
+            self.scrollController.edgeSwipingActive = true
+            let tx = (recognizer.edges == .Left) ? p.x : p.x - view.frame.width
+            webViewContainer.transform = CGAffineTransformMakeTranslation(tx, self.webViewContainer.transform.ty)
+        }
+    }
+
+    @objc func screenRightEdgeSwiped(recognizer: UIScreenEdgePanGestureRecognizer) {
+        handleSwipe(recognizer)
+    }
+
+    @objc func screenLeftEdgeSwiped(recognizer: UIScreenEdgePanGestureRecognizer) {
+        handleSwipe(recognizer)
     }
 
     override func SELtappedTopArea() {

@@ -38,6 +38,8 @@ class BraveScrollController: NSObject {
     var headerTopConstraint: Constraint?
     var toolbarsShowing: Bool { return headerTopOffset == 0 }
 
+    var edgeSwipingActive = false
+
     private var headerTopOffset: CGFloat = 0 {
         didSet {
             headerTopConstraint?.updateOffset(headerTopOffset)
@@ -136,6 +138,7 @@ class BraveScrollController: NSObject {
 
     override func observeValueForKeyPath(keyPath: String?, ofObject object: AnyObject?, change: [String : AnyObject]?, context: UnsafeMutablePointer<Void>) {
         if keyPath == "contentSize" {
+            print("content size changed")
             checkHeightOfPageAndAdjustWebViewInsents()
             if !isScrollHeightIsLargeEnoughForScrolling() && !toolbarsShowing {
                 showToolbars(animated: true, completion: nil)
@@ -150,7 +153,7 @@ private extension BraveScrollController {
     }
 
     @objc func handlePan(gesture: UIPanGestureRecognizer) {
-        if browserIsLoading() /*|| BraveUX.IsToolbarHidingOff */ {
+        if browserIsLoading() || edgeSwipingActive {
             return
         }
 
