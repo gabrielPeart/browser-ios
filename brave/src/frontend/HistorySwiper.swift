@@ -30,6 +30,8 @@ class HistorySwiper {
         return topLevelView.frame.width
     }
 
+    var imageView: UIImageView?
+
     private func handleSwipe(recognizer: UIScreenEdgePanGestureRecognizer) {
         let p = recognizer.locationInView(recognizer.view)
 
@@ -60,11 +62,25 @@ class HistorySwiper {
                     } else {
                         getApp().browserViewController.scrollController.edgeSwipingActive = false
                     }
+
+                    if let v = self.imageView {
+                       v.removeFromSuperview()
+                       self.imageView = nil
+                       getApp().browserViewController.webViewContainerBackdrop.alpha = 0
+                    }
             })
         } else {
             getApp().browserViewController.scrollController.edgeSwipingActive = true
             let tx = (recognizer.edges == .Left) ? p.x : p.x - screenWidth()
             webViewContainer.transform = CGAffineTransformMakeTranslation(tx, self.webViewContainer.transform.ty)
+
+            if let image = getApp().browserViewController.tabManager.selectedTab?.screenshot where imageView == nil {
+                imageView = UIImageView(image: image)
+
+                getApp().browserViewController.webViewContainerBackdrop.addSubview(imageView!)
+                getApp().browserViewController.webViewContainerBackdrop.alpha = 1
+                imageView!.frame = CGRectMake(0, 0, self.webViewContainer.frame.width, self.webViewContainer.frame.height)
+            }
         }
     }
 

@@ -111,3 +111,10 @@ func addSkipBackupAttributeToItemAtURL(url:NSURL) {
         print("Error excluding \(url.lastPathComponent) from backup \(error)")
     }
 }
+
+func printTimeElapsedWhenRunningCode(title:String, operation:()->()) {
+    let startTime = CFAbsoluteTimeGetCurrent()
+    operation()
+    let timeElapsed = CFAbsoluteTimeGetCurrent() - startTime
+    print("Time elapsed for \(title): \(timeElapsed) s")
+}
