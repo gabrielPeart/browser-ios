@@ -1432,12 +1432,6 @@ extension BrowserViewController: WindowCloseHelperDelegate {
 extension BrowserViewController: BrowserDelegate {
 
     func browser(browser: Browser, didCreateWebView webView: BraveWebView) {
-        webViewContainer.insertSubview(webView, atIndex: 0)
-        webView.snp_makeConstraints { make in
-            make.top.equalTo(webViewContainerToolbar.snp_bottom)
-            make.left.right.bottom.equalTo(self.webViewContainer)
-        }
-
         // Observers that live as long as the tab. Make sure these are all cleared
         // in willDeleteWebView below!
         webView.addObserver(self, forKeyPath: KVOEstimatedProgress, options: .New, context: nil)
@@ -1696,6 +1690,7 @@ extension BrowserViewController: TabManagerDelegate {
             // we therefore have to hide all the scrollViews that we are no actually interesting in interacting with
             // to ensure that scrollsToTop actually works
             ///wv.scrollView.hidden = true
+            wv.removeFromSuperview()
         }
 
 
@@ -1720,11 +1715,18 @@ extension BrowserViewController: TabManagerDelegate {
             ReaderModeHandlers.readerModeCache = readerModeCache
 
             scrollController.browser = selected
-            webViewContainer.addSubview(webView)
+
             webView.accessibilityLabel = NSLocalizedString("Web content", comment: "Accessibility label for the main web content view")
             webView.accessibilityIdentifier = "contentView"
             webView.accessibilityElementsHidden = false
 
+#if BRAVE
+            webViewContainer.insertSubview(webView, atIndex: 0)
+            webView.snp_makeConstraints { make in
+                make.top.equalTo(webViewContainerToolbar.snp_bottom)
+                make.left.right.bottom.equalTo(self.webViewContainer)
+            }
+#endif
             addOpenInViewIfNeccessary(webView.URL)
 
             if let url = webView.URL?.absoluteString {

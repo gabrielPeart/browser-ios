@@ -59,11 +59,21 @@ class HttpsEverywhere {
         updateEnabledState()
     }
 
-    private func applyRedirectRuleForIds(ids: [Int], schemeAndHost: String) -> String? {
+    private func applyRedirectRuleForIds(ids: [Int], url: NSURL) -> NSURL? {
         guard let db = db else { return nil }
         let table = Table("rulesets")
         let contents = Expression<String>("contents")
         let id = Expression<Int>("id")
+
+        func urlWithTrailingSlash(url: NSURL) -> String {
+            let s = url.absoluteString
+            if (!s.endsWith("/") && String(url.path).isEmpty) {
+                return s + "/"
+            }
+            return s
+        }
+
+        let urlString = urlWithTrailingSlash(url)
 
         let query = table.select(contents).filter(ids.contains(id))
 
@@ -87,7 +97,7 @@ class HttpsEverywhere {
 
                 if let exclusion = ruleset["exclusion"] as? String {
                     let regex = try NSRegularExpression(pattern: exclusion, options: [])
-                    let result = regex.firstMatchInString(schemeAndHost, options: [], range: NSMakeRange(0, schemeAndHost.characters.count))
+                    let result = regex.firstMatchInString(urlString, options: [], range: NSMakeRange(0, urlString.characters.count))
                     if let result = result where result.range.location != NSNotFound {
                         return nil
                     }
@@ -96,10 +106,10 @@ class HttpsEverywhere {
                 for rule in rules {
                     guard let props = rule["$"] as? NSDictionary, from = props["from"] as? String, to = props["to"] as? String else { return nil }
                     let regex = try NSRegularExpression(pattern: from, options: [])
-                    let url = regex.stringByReplacingMatchesInString(schemeAndHost, options: [], range: NSMakeRange(0, schemeAndHost.characters.count), withTemplate: to)
+                    let newUrl = regex.stringByReplacingMatchesInString(urlString, options: [], range: NSMakeRange(0, urlString.characters.count), withTemplate: to)
 
-                    if url != schemeAndHost {
-                        return url
+                    if newUrl != url {
+                        return NSURL(string: newUrl)
                     }
                 }
             } catch {
@@ -172,36 +182,22 @@ class HttpsEverywhere {
 
         // This internal function is so we can store the result in the fifoCacheOfRedirects
         func redirect(url: NSURL) -> NSURL? {
-            var str = stripLocalhostWebServer(url.absoluteString)
-            if str.hasSuffix("/") {
-                str = String(str.characters.dropLast())
-            }
-            guard let url = NSURL(string: str), host = url.host else {
+            guard let url = NSURL(string: stripLocalhostWebServer(url.absoluteString)), host = url.host else {
                 return nil
             }
-
-            let scheme = url.scheme
 
             let ids = mapDomainToIdForLookup(host)
             if ids.count < 1 {
                 return nil
             }
 
-            guard let newHost = applyRedirectRuleForIds(ids, schemeAndHost: scheme + "://" + host) else { return nil }
-
-            var newUrl = NSURL(string: newHost)
-            if let path = url.path {
-                newUrl = newUrl?.URLByAppendingPathComponent(path)
-            }
-            if let query = url.query, url = newUrl?.absoluteString {
-                newUrl = NSURL(string: url + "?" + query)
-            }
+            guard let newUrl = applyRedirectRuleForIds(ids, url: url) else { return nil }
 
             let ignoredlist = [
                 "m.slashdot.org" // see https://github.com/brave/browser-ios/issues/104
             ]
             for item in ignoredlist {
-                if url.absoluteString.contains(item) || newHost.contains(item) {
+                if url.absoluteString.contains(item) || (newUrl.host?.contains(item) ?? false) {
                     return nil
                 }
             }

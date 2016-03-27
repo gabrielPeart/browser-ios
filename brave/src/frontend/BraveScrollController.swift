@@ -108,7 +108,8 @@ class BraveScrollController: NSObject {
 
         if !isScrollHeightIsLargeEnoughForScrolling() {
             if (scrollView?.contentInset.bottom == 0) {
-                scrollView?.contentInset = UIEdgeInsetsMake(0, 0, UIConstants.ToolbarHeight * 2, 0)
+                let h = UIDevice.currentDevice().userInterfaceIdiom == .Phone ? UIConstants.ToolbarHeight * 2 : UIConstants.ToolbarHeight
+                scrollView?.contentInset = UIEdgeInsetsMake(0, 0, h, 0)
             }
         } else {
             if (scrollView?.contentInset.bottom != 0) {
@@ -138,7 +139,7 @@ class BraveScrollController: NSObject {
 
     override func observeValueForKeyPath(keyPath: String?, ofObject object: AnyObject?, change: [String : AnyObject]?, context: UnsafeMutablePointer<Void>) {
         if keyPath == "contentSize" {
-            print("content size changed")
+            browser?.webView?.contentSizeTriggeredLocationCheck()
             checkHeightOfPageAndAdjustWebViewInsents()
             if !isScrollHeightIsLargeEnoughForScrolling() && !toolbarsShowing {
                 showToolbars(animated: true, completion: nil)

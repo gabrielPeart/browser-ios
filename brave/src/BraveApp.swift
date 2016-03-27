@@ -7,6 +7,10 @@ import Fabric
 import Crashlytics
 #endif
 
+#if !DEBUG
+func print(items: Any..., separator: String = " ", terminator: String = "\n") {}
+#endif
+
 private let _singleton = BraveApp()
 
 let kAppBootingIncompleteFlag = "kAppBootingIncompleteFlag"
