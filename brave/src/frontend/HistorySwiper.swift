@@ -1,6 +1,54 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 
+// Used by Browser as a member var to store sceenshots
+class ScreenshotsForHistory {
+    let kMaxItems = 4
+    var items: [(location: String, lastVisited: NSDate, image: UIImage)] = []
+
+    func addForLocation(location: String, image: UIImage) {
+        if items.count == kMaxItems {
+            var oldest = 0
+            for i in 1..<items.count {
+                if items[i].lastVisited.timeIntervalSinceDate(items[oldest].lastVisited) < 0 {
+                    oldest = i
+                }
+            }
+            items.removeAtIndex(oldest)
+        }
+
+        items.append((location: location, lastVisited: NSDate(), image: image))
+        //        #if DEBUG
+        //        for item in items {
+        //            print("§ \(item)")
+        //        }
+        //        #endif
+    }
+
+    // updates date visited and return true if item with location exists
+    func touchExistingItem(location: String) -> Bool {
+        for i in 0..<items.count {
+            if items[i].location == location {
+                let image = items[i].image
+                items.removeAtIndex(i)
+                addForLocation(location, image: image)
+                return true
+            }
+        }
+        return false
+    }
+
+    func get(location: String) -> UIImage? {
+        for i in 0..<items.count {
+            if items[i].location == location {
+                return items[i].image
+            }
+        }
+        return nil
+    }
+}
+
+
 class HistorySwiper {
 
     var topLevelView: UIView!
@@ -30,9 +78,18 @@ class HistorySwiper {
         return topLevelView.frame.width
     }
 
+#if IMAGE_SWIPE_ON
     var imageView: UIImageView?
+#endif
 
     private func handleSwipe(recognizer: UIScreenEdgePanGestureRecognizer) {
+        guard let tab = getApp().browserViewController.tabManager.selectedTab else { return }
+
+        if let wv = tab.webView where (recognizer.edges == .Left && !wv.canNavigateBackward()) ||
+            (recognizer.edges == .Right && !wv.canNavigateForward()) {
+            return
+        }
+
         let p = recognizer.locationInView(recognizer.view)
 
         let shouldReturnToZero = (recognizer.edges == .Left) ? p.x < screenWidth() / 2.0 : p.x > screenWidth() / 2.0
@@ -49,38 +106,56 @@ class HistorySwiper {
                 }, completion: { (Bool) -> Void in
                     if !shouldReturnToZero {
                         if recognizer.edges == .Left {
-                            getApp().browserViewController.tabManager.selectedTab?.webView?.goBack()
+                           tab.goBack()
                         } else {
-                            getApp().browserViewController.tabManager.selectedTab?.webView?.goForward()
+                            tab.goForward()
                         }
 
                         self.webViewContainer.transform = CGAffineTransformMakeTranslation(0, self.webViewContainer.transform.ty)
-                        UIView.animateWithDuration(0.1) {
-                            self.webViewContainer.alpha = 1.0
-                            getApp().browserViewController.scrollController.edgeSwipingActive = false
+
+                        // when content size is updated
+                        delay(3.0) {
+                            self.restoreWebview()
                         }
                     } else {
                         getApp().browserViewController.scrollController.edgeSwipingActive = false
-                    }
-
-                    if let v = self.imageView {
-                       v.removeFromSuperview()
-                       self.imageView = nil
-                       getApp().browserViewController.webViewContainerBackdrop.alpha = 0
+#if IMAGE_SWIPE_ON
+                        if let v = self.imageView {
+                           v.removeFromSuperview()
+                           self.imageView = nil
+                           getApp().browserViewController.webViewContainerBackdrop.alpha = 0
+                        }
+#endif
                     }
             })
         } else {
             getApp().browserViewController.scrollController.edgeSwipingActive = true
             let tx = (recognizer.edges == .Left) ? p.x : p.x - screenWidth()
             webViewContainer.transform = CGAffineTransformMakeTranslation(tx, self.webViewContainer.transform.ty)
-
-            if let image = getApp().browserViewController.tabManager.selectedTab?.screenshot where imageView == nil {
+#if IMAGE_SWIPE_ON
+            let image = recognizer.edges == .Left ? tab.screenshotForBackHistory() : tab.screenshotForForwardHistory()
+            if let image = image where imageView == nil {
                 imageView = UIImageView(image: image)
 
                 getApp().browserViewController.webViewContainerBackdrop.addSubview(imageView!)
                 getApp().browserViewController.webViewContainerBackdrop.alpha = 1
                 imageView!.frame = CGRectMake(0, 0, self.webViewContainer.frame.width, self.webViewContainer.frame.height)
             }
+#endif
+        }
+    }
+
+    func restoreWebview() {
+        if webViewContainer.alpha < 1 && getApp().browserViewController.scrollController.edgeSwipingActive {
+            webViewContainer.alpha = 1.0
+            getApp().browserViewController.scrollController.edgeSwipingActive = false
+#if IMAGE_SWIPE_ON
+            if let v = self.imageView {
+                v.removeFromSuperview()
+                self.imageView = nil
+                getApp().browserViewController.webViewContainerBackdrop.alpha = 0
+            }
+#endif
         }
     }
 

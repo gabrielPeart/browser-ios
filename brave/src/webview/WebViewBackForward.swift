@@ -46,9 +46,9 @@ class WebViewBackForwardList {
         #endif
     }
 
-    func update(webview: UIWebView) {
+    func update() {
         let currIndicator = ">>> "
-        guard let obj = webview.valueForKeyPath("documentView.webView.backForwardList") else { return }
+        guard let obj = webView?.valueForKeyPath("documentView.webView.backForwardList") else { return }
         let history = obj.description
         let nsHistory = history as NSString
 

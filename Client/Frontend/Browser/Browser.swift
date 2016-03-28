@@ -85,6 +85,22 @@ class Browser: NSObject, BrowserWebViewDelegate {
         self.isPrivate = isPrivate
     }
 
+#if BRAVE && IMAGE_SWIPE_ON
+    let screenshotsForHistory = ScreenshotsForHistory()
+
+    func screenshotForBackHistory() -> UIImage? {
+        webView?.backForwardList.update()
+        guard let prevLoc = webView?.backForwardList.backItem?.URL.absoluteString else { return nil }
+        return screenshotsForHistory.get(prevLoc)
+    }
+
+    func screenshotForForwardHistory() -> UIImage? {
+        webView?.backForwardList.update()
+        guard let next = webView?.backForwardList.forwardItem?.URL.absoluteString else { return nil }
+        return screenshotsForHistory.get(next)
+    }
+#endif
+
     class func toTab(browser: Browser) -> RemoteTab? {
         if let displayURL = browser.displayURL {
             let hl = browser.historyList;
@@ -436,7 +452,13 @@ class Browser: NSObject, BrowserWebViewDelegate {
         }
     }
 
+
     func setScreenshot(screenshot: UIImage?, revUUID: Bool = true) {
+#if IMAGE_SWIPE_ON
+        if let loc = webView?.URL?.absoluteString, screenshot = screenshot {
+            screenshotsForHistory.addForLocation(loc, image: screenshot)
+        }
+#endif
         self.screenshot = screenshot
         if revUUID {
             self.screenshotUUID = NSUUID()

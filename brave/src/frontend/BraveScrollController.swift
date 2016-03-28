@@ -139,7 +139,7 @@ class BraveScrollController: NSObject {
 
     override func observeValueForKeyPath(keyPath: String?, ofObject object: AnyObject?, change: [String : AnyObject]?, context: UnsafeMutablePointer<Void>) {
         if keyPath == "contentSize" {
-            browser?.webView?.contentSizeTriggeredLocationCheck()
+            browser?.webView?.contentSizeChangeDetected()
             checkHeightOfPageAndAdjustWebViewInsents()
             if !isScrollHeightIsLargeEnoughForScrolling() && !toolbarsShowing {
                 showToolbars(animated: true, completion: nil)
